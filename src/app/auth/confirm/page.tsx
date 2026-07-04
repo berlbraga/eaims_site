@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
-export default function AuthConfirmPage() {
+function AuthConfirmContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [message, setMessage] = useState("Confirmando seu acesso...");
@@ -55,6 +55,28 @@ export default function AuthConfirmPage() {
         <div className="mt-8 flex items-center justify-center gap-3 text-sm text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin text-primary" aria-hidden />
           {message}
+        </div>
+      </section>
+    </main>
+  );
+}
+
+export default function AuthConfirmPage() {
+  return (
+    <Suspense fallback={<AuthConfirmFallback />}>
+      <AuthConfirmContent />
+    </Suspense>
+  );
+}
+
+function AuthConfirmFallback() {
+  return (
+    <main className="grid min-h-screen place-items-center bg-muted/40 px-4 py-10">
+      <section className="text-center">
+        <p className="text-3xl font-bold text-primary">E-AIMS</p>
+        <div className="mt-8 flex items-center justify-center gap-3 text-sm text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" aria-hidden />
+          Confirmando seu acesso...
         </div>
       </section>
     </main>
