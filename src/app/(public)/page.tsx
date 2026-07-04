@@ -1,13 +1,22 @@
 import Link from "next/link";
+import Image from "next/image";
 import { ChevronRight, GraduationCap, Microscope, UsersRound } from "lucide-react";
 import { OrbitalLogo } from "@/components/brand/orbital-logo";
 
 const organizationMembers = [
-  { name: "Luiz Eduardo Ceccon", role: "Fundador e corpo organizador" },
-  { name: "Bernardo Loureiro Braga Araujo", role: "Fundador e corpo organizador" },
-  { name: "Lucca Miguel Duda Tavares", role: "Fundador e corpo organizador" },
-  { name: "Luiz Berthier Jacomino", role: "Corpo organizador" },
-  { name: "Amanda Markovna Falcone Rozhanskiy", role: "Corpo organizador" }
+  { name: "Luiz Eduardo Ceccon", role: "Fundador e corpo organizador", image: "/team/luiz-eduardo-ceccon.png" },
+  {
+    name: "Bernardo Loureiro Braga Araujo",
+    role: "Fundador e corpo organizador",
+    image: "/team/bernardo-loureiro-braga-araujo.png"
+  },
+  {
+    name: "Lucca Miguel Duda Tavares",
+    role: "Fundador e corpo organizador",
+    image: "/team/lucca-miguel-duda-tavares.png"
+  },
+  { name: "Luiz Felipe Berthier Jacomino", role: "Corpo organizador", image: "/team/luiz-felipe-berthier-jacomino.png" },
+  { name: "Amanda Markovna Falcone Rozhanskiy", role: "Corpo organizador", image: "/team/amanda-markovna-falcone-rozhanskiy.jpeg" }
 ];
 
 const featureCards = [
@@ -49,15 +58,6 @@ const faqs = [
       "O E-AIMS tem como objetivo inserir os alunos nas etapas de produção de projetos de revisão sistemática e meta-análise em andamento, com potencial posterior de apresentação em congressos e publicação em revistas científicas. A participação na autoria dependerá da contribuição efetiva do aluno no desenvolvimento do projeto, conforme os critérios de autoria aplicáveis."
   }
 ];
-
-function initials(name: string) {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("");
-}
 
 export default function InstitutionalHomePage() {
   return (
@@ -160,9 +160,14 @@ export default function InstitutionalHomePage() {
           <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
             {organizationMembers.map((person) => (
               <article key={person.name} className="overflow-hidden rounded-lg border border-[#0e496d]/18 bg-[#fbf8ef]">
-                <div className="relative grid aspect-square place-items-center overflow-hidden bg-[#0e496d] text-white">
-                  <OrbitalLogo variant="white" className="absolute -right-16 -top-20 h-60 w-60 object-contain opacity-[0.14]" />
-                  <span className="relative text-3xl font-light tracking-[0.16em]">{initials(person.name)}</span>
+                <div className="relative aspect-square overflow-hidden bg-[#0e496d]">
+                  <Image
+                    src={person.image}
+                    alt={`Foto de ${person.name}`}
+                    width={640}
+                    height={640}
+                    className="h-full w-full object-cover object-center"
+                  />
                 </div>
                 <div className="p-5">
                   <p className="text-sm font-bold uppercase leading-6 tracking-[0.08em]">{person.name}</p>
