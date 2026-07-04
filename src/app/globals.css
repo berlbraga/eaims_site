@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 205 28% 14%;
+  --card: 0 0% 100%;
+  --card-foreground: 205 28% 14%;
+  --primary: 190 86% 29%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 180 28% 92%;
+  --secondary-foreground: 196 62% 22%;
+  --muted: 200 22% 95%;
+  --muted-foreground: 204 12% 42%;
+  --destructive: 0 72% 45%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 204 18% 86%;
+  --input: 204 18% 86%;
+  --ring: 190 86% 29%;
+  --radius: 0.5rem;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
