@@ -1,7 +1,7 @@
 "use client";
 
-import { FormEvent, useRef, useState } from "react";
-import { upsertLessonAction, upsertMaterialAction, upsertModuleAction } from "@/actions/admin";
+import { FormEvent, useActionState, useRef, useState } from "react";
+import { type MaterialActionState, upsertLessonAction, upsertMaterialAction, upsertModuleAction } from "@/actions/admin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,6 +44,10 @@ export function LessonForm({ modules }: { modules: Array<{ id: string; title: st
 
 export function MaterialForm({ lessons }: { lessons: Array<{ id: string; title: string }> }) {
   const shouldSubmitRef = useRef(false);
+  const [actionState, formAction, actionPending] = useActionState<MaterialActionState, FormData>(upsertMaterialAction, {
+    ok: false,
+    message: ""
+  });
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
   const maxMaterialSizeMb = Number(process.env.NEXT_PUBLIC_MAX_MATERIAL_SIZE_MB ?? 25);
@@ -114,8 +118,11 @@ export function MaterialForm({ lessons }: { lessons: Array<{ id: string; title: 
     }
   }
 
+  const visibleMessage = message || actionState.message;
+  const isBusy = uploading || actionPending;
+
   return (
-    <form action={upsertMaterialAction} onSubmit={handleSubmit} className="grid gap-3 rounded-lg border p-4 md:grid-cols-2">
+    <form action={formAction} onSubmit={handleSubmit} className="grid gap-3 rounded-lg border p-4 md:grid-cols-2">
       <div className="space-y-2">
         <Label>Aula</Label>
         <select name="lesson_id" required className="h-10 rounded-md border bg-background px-3 text-sm">
@@ -144,8 +151,12 @@ export function MaterialForm({ lessons }: { lessons: Array<{ id: string; title: 
       <input type="hidden" name="mime_type" />
       <input type="hidden" name="file_size" />
       <label className="flex items-center gap-2 text-sm"><input name="is_published" type="checkbox" value="true" /> Publicado</label>
-      {message ? <p className="text-sm text-destructive md:col-span-2">{message}</p> : null}
-      <Button className="md:col-span-2" disabled={uploading}>{uploading ? "Enviando PDF..." : "Salvar material"}</Button>
+      {visibleMessage ? (
+        <p className={`text-sm md:col-span-2 ${!message && actionState.ok ? "text-emerald-700" : "text-destructive"}`}>
+          {visibleMessage}
+        </p>
+      ) : null}
+      <Button className="md:col-span-2" disabled={isBusy}>{uploading ? "Enviando PDF..." : "Salvar material"}</Button>
     </form>
   );
 }

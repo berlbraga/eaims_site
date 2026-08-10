@@ -6,6 +6,11 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { contentSlug, lessonSchema, materialSchema, moduleSchema, userUpdateSchema } from "@/lib/validation/content";
 import { canModifyAdminStatus } from "@/lib/permissions/roles";
 
+export type MaterialActionState = {
+  ok: boolean;
+  message: string;
+};
+
 export async function upsertModuleAction(formData: FormData) {
   const { user } = await requireAdminProfile();
   const id = formData.get("id")?.toString();
@@ -56,10 +61,10 @@ export async function deleteLessonAction(formData: FormData) {
   revalidatePath("/admin/aulas");
 }
 
-export async function upsertMaterialAction(formData: FormData) {
+export async function upsertMaterialAction(_: MaterialActionState, formData: FormData): Promise<MaterialActionState> {
   await requireAdminProfile();
   const id = formData.get("id")?.toString();
-  const parsed = materialSchema.parse({
+  const rawMaterial = {
     lesson_id: formData.get("lesson_id"),
     title: formData.get("title"),
     description: formData.get("description") || undefined,
@@ -71,11 +76,34 @@ export async function upsertMaterialAction(formData: FormData) {
     file_size: formData.get("file_size") || undefined,
     position: formData.get("position") || 0,
     is_published: formData.get("is_published") === "true"
-  });
+  };
+
+  const parsed = materialSchema.safeParse(rawMaterial);
+  if (!parsed.success) {
+    const firstIssue = parsed.error.issues[0];
+    return {
+      ok: false,
+      message: firstIssue?.message ?? "Revise os dados do material e tente novamente."
+    };
+  }
+
   const supabase = await createSupabaseServerClient();
-  if (id) await supabase.from("lesson_materials").update(parsed).eq("id", id);
-  else await supabase.from("lesson_materials").insert(parsed);
+  const { error } = id
+    ? await supabase.from("lesson_materials").update(parsed.data).eq("id", id)
+    : await supabase.from("lesson_materials").insert(parsed.data);
+
+  if (error) {
+    return {
+      ok: false,
+      message: "Nao foi possivel salvar o material. Verifique as permissoes do Supabase e tente novamente."
+    };
+  }
+
   revalidatePath("/admin/aulas");
+  return {
+    ok: true,
+    message: "Material salvo com sucesso."
+  };
 }
 
 export async function updateUserAction(formData: FormData) {
