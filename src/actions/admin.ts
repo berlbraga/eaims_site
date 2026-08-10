@@ -59,7 +59,19 @@ export async function deleteLessonAction(formData: FormData) {
 export async function upsertMaterialAction(formData: FormData) {
   await requireAdminProfile();
   const id = formData.get("id")?.toString();
-  const parsed = materialSchema.parse(Object.fromEntries(formData));
+  const parsed = materialSchema.parse({
+    lesson_id: formData.get("lesson_id"),
+    title: formData.get("title"),
+    description: formData.get("description") || undefined,
+    material_type: formData.get("material_type"),
+    storage_path: formData.get("storage_path") || undefined,
+    external_url: formData.get("external_url") || undefined,
+    file_name: formData.get("file_name") || undefined,
+    mime_type: formData.get("mime_type") || undefined,
+    file_size: formData.get("file_size") || undefined,
+    position: formData.get("position") || 0,
+    is_published: formData.get("is_published") === "true"
+  });
   const supabase = await createSupabaseServerClient();
   if (id) await supabase.from("lesson_materials").update(parsed).eq("id", id);
   else await supabase.from("lesson_materials").insert(parsed);
