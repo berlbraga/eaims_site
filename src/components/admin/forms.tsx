@@ -1,13 +1,7 @@
 "use client";
 
-import { FormEvent, useActionState, useRef, useState } from "react";
-import {
-  createMaterialUploadUrlAction,
-  type MaterialActionState,
-  upsertLessonAction,
-  upsertMaterialAction,
-  upsertModuleAction
-} from "@/actions/admin";
+import { FormEvent, useState } from "react";
+import { upsertLessonAction, upsertModuleAction } from "@/actions/admin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -49,97 +43,122 @@ export function LessonForm({ modules }: { modules: Array<{ id: string; title: st
 }
 
 export function MaterialForm({ lessons }: { lessons: Array<{ id: string; title: string }> }) {
-  const shouldSubmitRef = useRef(false);
-  const [actionState, formAction, actionPending] = useActionState<MaterialActionState, FormData>(upsertMaterialAction, {
-    ok: false,
-    message: ""
-  });
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
+  const [messageKind, setMessageKind] = useState<"error" | "success">("error");
   const maxMaterialSizeMb = Number(process.env.NEXT_PUBLIC_MAX_MATERIAL_SIZE_MB ?? 25);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    if (shouldSubmitRef.current) {
-      shouldSubmitRef.current = false;
-      return;
-    }
-
+    event.preventDefault();
     const form = event.currentTarget;
     const formData = new FormData(form);
     const file = formData.get("material_file");
     const externalUrl = formData.get("external_url")?.toString().trim();
-
-    if (!(file instanceof File) || file.size === 0) return;
-
-    event.preventDefault();
-    setMessage("");
-
-    if (externalUrl) {
-      setMessage("Use arquivo PDF ou URL externa, nao ambos.");
-      return;
-    }
-
-    if (file.type !== "application/pdf") {
-      setMessage("Selecione um arquivo PDF.");
-      return;
-    }
-
-    const maxBytes = maxMaterialSizeMb * 1024 * 1024;
-    if (file.size > maxBytes) {
-      setMessage(`O PDF deve ter no maximo ${maxMaterialSizeMb} MB.`);
-      return;
-    }
-
+    const title = formData.get("title")?.toString().trim();
     const lessonId = formData.get("lesson_id")?.toString();
+    const materialType = formData.get("material_type")?.toString() || "pdf";
+
+    setMessage("");
+    setMessageKind("error");
+
     if (!lessonId) {
-      setMessage("Selecione uma aula antes de enviar o PDF.");
+      setMessage("Selecione uma aula antes de salvar o material.");
+      return;
+    }
+
+    if (!title) {
+      setMessage("Informe o titulo do material.");
+      return;
+    }
+
+    if ((file instanceof File && file.size > 0) && externalUrl) {
+      setMessage("Use arquivo PDF ou URL externa, nao ambos.");
       return;
     }
 
     setUploading(true);
     try {
-      const supabase = createSupabaseBrowserClient();
-      const signedUpload = await createMaterialUploadUrlAction({
-        lessonId,
-        fileName: file.name,
-        mimeType: file.type,
-        fileSize: file.size
-      });
+      let storagePath = "";
+      let fileName = "";
+      let mimeType = "";
+      let fileSize: number | undefined;
 
-      if (!signedUpload.ok) {
-        setMessage(signedUpload.message);
+      if (file instanceof File && file.size > 0) {
+        if (file.type !== "application/pdf") {
+          setMessage("Selecione um arquivo PDF.");
+          return;
+        }
+
+        const maxBytes = maxMaterialSizeMb * 1024 * 1024;
+        if (file.size > maxBytes) {
+          setMessage(`O PDF deve ter no maximo ${maxMaterialSizeMb} MB.`);
+          return;
+        }
+
+        const signedUploadResponse = await fetch("/api/admin/material-upload-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lessonId,
+            fileName: file.name,
+            mimeType: file.type,
+            fileSize: file.size
+          })
+        });
+        const signedUpload = await signedUploadResponse.json();
+        if (!signedUploadResponse.ok) {
+          setMessage(signedUpload.error ?? "Nao foi possivel preparar o envio do PDF.");
+          return;
+        }
+
+        const supabase = createSupabaseBrowserClient();
+        const { error } = await supabase.storage.from("lesson-materials").uploadToSignedUrl(signedUpload.path, signedUpload.token, file, {
+          contentType: file.type,
+          upsert: false
+        });
+        if (error) {
+          setMessage(`Nao foi possivel enviar o PDF ao Supabase Storage: ${error.message}`);
+          return;
+        }
+
+        storagePath = signedUpload.path;
+        fileName = file.name;
+        mimeType = file.type;
+        fileSize = file.size;
+      }
+
+      const saveResponse = await fetch("/api/admin/materials", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lesson_id: lessonId,
+          title,
+          material_type: storagePath ? "pdf" : materialType,
+          storage_path: storagePath || undefined,
+          external_url: storagePath ? undefined : externalUrl || undefined,
+          file_name: fileName || undefined,
+          mime_type: mimeType || undefined,
+          file_size: fileSize,
+          position: 0,
+          is_published: formData.get("is_published") === "true"
+        })
+      });
+      const saveResult = await saveResponse.json();
+      if (!saveResponse.ok) {
+        setMessage(saveResult.error ?? "Nao foi possivel salvar o material.");
         return;
       }
 
-      const { error } = await supabase.storage.from("lesson-materials").uploadToSignedUrl(signedUpload.path, signedUpload.token, file, {
-        contentType: file.type,
-        upsert: false
-      });
-
-      if (error) {
-        setMessage(`Nao foi possivel enviar o PDF ao Supabase Storage: ${error.message}`);
-        return;
-      }
-
-      setInputValue(form, "storage_path", signedUpload.path);
-      setInputValue(form, "external_url", "");
-      setInputValue(form, "file_name", file.name);
-      setInputValue(form, "mime_type", file.type);
-      setInputValue(form, "file_size", String(file.size));
-      setInputValue(form, "material_type", "pdf");
-
-      shouldSubmitRef.current = true;
-      form.requestSubmit();
+      form.reset();
+      setMessageKind("success");
+      setMessage("Material salvo com sucesso.");
     } finally {
       setUploading(false);
     }
   }
 
-  const visibleMessage = message || actionState.message;
-  const isBusy = uploading || actionPending;
-
   return (
-    <form action={formAction} onSubmit={handleSubmit} className="grid gap-3 rounded-lg border p-4 md:grid-cols-2">
+    <form onSubmit={handleSubmit} className="grid gap-3 rounded-lg border p-4 md:grid-cols-2">
       <div className="space-y-2">
         <Label>Aula</Label>
         <select name="lesson_id" required className="h-10 rounded-md border bg-background px-3 text-sm">
@@ -168,19 +187,12 @@ export function MaterialForm({ lessons }: { lessons: Array<{ id: string; title: 
       <input type="hidden" name="mime_type" />
       <input type="hidden" name="file_size" />
       <label className="flex items-center gap-2 text-sm"><input name="is_published" type="checkbox" value="true" /> Publicado</label>
-      {visibleMessage ? (
-        <p className={`text-sm md:col-span-2 ${!message && actionState.ok ? "text-emerald-700" : "text-destructive"}`}>
-          {visibleMessage}
+      {message ? (
+        <p className={`text-sm md:col-span-2 ${messageKind === "success" ? "text-emerald-700" : "text-destructive"}`}>
+          {message}
         </p>
       ) : null}
-      <Button className="md:col-span-2" disabled={isBusy}>{uploading ? "Enviando PDF..." : "Salvar material"}</Button>
+      <Button className="md:col-span-2" disabled={uploading}>{uploading ? "Enviando PDF..." : "Salvar material"}</Button>
     </form>
   );
-}
-
-function setInputValue(form: HTMLFormElement, name: string, value: string) {
-  const input = form.elements.namedItem(name);
-  if (input instanceof HTMLInputElement || input instanceof HTMLSelectElement) {
-    input.value = value;
-  }
 }
