@@ -1,7 +1,13 @@
 "use client";
 
 import { FormEvent, useActionState, useRef, useState } from "react";
-import { type MaterialActionState, upsertLessonAction, upsertMaterialAction, upsertModuleAction } from "@/actions/admin";
+import {
+  createMaterialUploadUrlAction,
+  type MaterialActionState,
+  upsertLessonAction,
+  upsertMaterialAction,
+  upsertModuleAction
+} from "@/actions/admin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -93,19 +99,30 @@ export function MaterialForm({ lessons }: { lessons: Array<{ id: string; title: 
     setUploading(true);
     try {
       const supabase = createSupabaseBrowserClient();
-      const storagePath = `lessons/${lessonId}/${Date.now()}-${safeFileName(file.name)}`;
-      const { error } = await supabase.storage.from("lesson-materials").upload(storagePath, file, {
-        cacheControl: "3600",
+      const signedUpload = await createMaterialUploadUrlAction({
+        lessonId,
+        fileName: file.name,
+        mimeType: file.type,
+        fileSize: file.size
+      });
+
+      if (!signedUpload.ok) {
+        setMessage(signedUpload.message);
+        return;
+      }
+
+      const { error } = await supabase.storage.from("lesson-materials").uploadToSignedUrl(signedUpload.path, signedUpload.token, file, {
         contentType: file.type,
         upsert: false
       });
 
       if (error) {
-        setMessage("Nao foi possivel enviar o PDF. Verifique se voce esta logado como admin.");
+        setMessage(`Nao foi possivel enviar o PDF ao Supabase Storage: ${error.message}`);
         return;
       }
 
-      setInputValue(form, "storage_path", storagePath);
+      setInputValue(form, "storage_path", signedUpload.path);
+      setInputValue(form, "external_url", "");
       setInputValue(form, "file_name", file.name);
       setInputValue(form, "mime_type", file.type);
       setInputValue(form, "file_size", String(file.size));
@@ -159,18 +176,6 @@ export function MaterialForm({ lessons }: { lessons: Array<{ id: string; title: 
       <Button className="md:col-span-2" disabled={isBusy}>{uploading ? "Enviando PDF..." : "Salvar material"}</Button>
     </form>
   );
-}
-
-function safeFileName(fileName: string) {
-  const withoutPath = fileName.split(/[/\\]/).pop() ?? "material.pdf";
-  const normalized = withoutPath
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9.]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-  return normalized.endsWith(".pdf") ? normalized : `${normalized || "material"}.pdf`;
 }
 
 function setInputValue(form: HTMLFormElement, name: string, value: string) {

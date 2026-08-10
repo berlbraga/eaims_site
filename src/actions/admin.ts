@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdminProfile } from "@/lib/auth/session";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient, createSupabaseServerClient } from "@/lib/supabase/server";
 import { contentSlug, lessonSchema, materialSchema, moduleSchema, userUpdateSchema } from "@/lib/validation/content";
 import { canModifyAdminStatus } from "@/lib/permissions/roles";
 
@@ -10,6 +10,24 @@ export type MaterialActionState = {
   ok: boolean;
   message: string;
 };
+
+type MaterialUploadUrlInput = {
+  lessonId: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+};
+
+export type MaterialUploadUrlState =
+  | {
+      ok: true;
+      path: string;
+      token: string;
+    }
+  | {
+      ok: false;
+      message: string;
+    };
 
 export async function upsertModuleAction(formData: FormData) {
   const { user } = await requireAdminProfile();
@@ -61,6 +79,42 @@ export async function deleteLessonAction(formData: FormData) {
   revalidatePath("/admin/aulas");
 }
 
+export async function createMaterialUploadUrlAction(input: MaterialUploadUrlInput): Promise<MaterialUploadUrlState> {
+  await requireAdminProfile();
+
+  const maxMaterialSizeMb = Number(process.env.NEXT_PUBLIC_MAX_MATERIAL_SIZE_MB ?? 25);
+  const maxBytes = maxMaterialSizeMb * 1024 * 1024;
+
+  if (!input.lessonId) {
+    return { ok: false, message: "Selecione uma aula antes de enviar o PDF." };
+  }
+
+  if (input.mimeType !== "application/pdf") {
+    return { ok: false, message: "Selecione um arquivo PDF." };
+  }
+
+  if (input.fileSize > maxBytes) {
+    return { ok: false, message: `O PDF deve ter no maximo ${maxMaterialSizeMb} MB.` };
+  }
+
+  const storagePath = `lessons/${input.lessonId}/${Date.now()}-${safeStorageFileName(input.fileName)}`;
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase.storage.from("lesson-materials").createSignedUploadUrl(storagePath);
+
+  if (error || !data?.token) {
+    return {
+      ok: false,
+      message: "Nao foi possivel preparar o envio do PDF no Supabase Storage."
+    };
+  }
+
+  return {
+    ok: true,
+    path: storagePath,
+    token: data.token
+  };
+}
+
 export async function upsertMaterialAction(_: MaterialActionState, formData: FormData): Promise<MaterialActionState> {
   await requireAdminProfile();
   const id = formData.get("id")?.toString();
@@ -104,6 +158,18 @@ export async function upsertMaterialAction(_: MaterialActionState, formData: For
     ok: true,
     message: "Material salvo com sucesso."
   };
+}
+
+function safeStorageFileName(fileName: string) {
+  const withoutPath = fileName.split(/[/\\]/).pop() ?? "material.pdf";
+  const normalized = withoutPath
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9.]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  return normalized.endsWith(".pdf") ? normalized : `${normalized || "material"}.pdf`;
 }
 
 export async function updateUserAction(formData: FormData) {
