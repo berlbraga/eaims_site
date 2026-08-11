@@ -17,7 +17,15 @@ export function VideoPlayer({
 }) {
   const [iframeUrl, setIframeUrl] = useState<string>("");
   const [warning, setWarning] = useState<string>("");
+  const [isCompleted, setIsCompleted] = useState(completed);
+  const [saving, setSaving] = useState(false);
   const lastSave = useRef(initialPosition);
+  const completedRef = useRef(completed);
+
+  useEffect(() => {
+    setIsCompleted(completed);
+    completedRef.current = completed;
+  }, [completed]);
 
   useEffect(() => {
     fetch(`/api/video-access/${lessonId}`)
@@ -35,18 +43,33 @@ export function VideoPlayer({
       const form = new FormData();
       form.set("lesson_id", lessonId);
       form.set("last_position_seconds", String(lastSave.current));
-      form.set("is_completed", "false");
+      form.set("is_completed", String(completedRef.current));
       void saveProgressAction(form);
     }, 30000);
     return () => window.clearInterval(timer);
   }, [lessonId]);
 
-  async function complete() {
+  async function toggleCompleted() {
+    const nextCompleted = !completedRef.current;
+    setSaving(true);
+    setIsCompleted(nextCompleted);
+    completedRef.current = nextCompleted;
+
     const form = new FormData();
     form.set("lesson_id", lessonId);
     form.set("last_position_seconds", String(lastSave.current));
-    form.set("is_completed", "true");
-    await saveProgressAction(form);
+    form.set("is_completed", String(nextCompleted));
+
+    try {
+      await saveProgressAction(form);
+    } catch {
+      const previousCompleted = !nextCompleted;
+      setIsCompleted(previousCompleted);
+      completedRef.current = previousCompleted;
+      setWarning("Nao foi possivel atualizar o progresso. Tente novamente.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -65,8 +88,8 @@ export function VideoPlayer({
         )}
       </div>
       {warning ? <p className="text-sm text-muted-foreground">{warning}</p> : null}
-      <Button onClick={complete} variant={completed ? "secondary" : "default"}>
-        {completed ? "Aula concluida" : "Marcar como concluida"}
+      <Button onClick={toggleCompleted} variant={isCompleted ? "secondary" : "default"} disabled={saving}>
+        {saving ? "Salvando..." : isCompleted ? "Desfazer conclusao" : "Marcar como concluida"}
       </Button>
     </div>
   );
