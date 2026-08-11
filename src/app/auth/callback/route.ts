@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { createSupabaseAdminClient, createSupabaseServerClient } from "@/lib/supabase/server";
-import { emailDomain } from "@/lib/validation/auth";
+import { ensureAuthorizedProfile } from "@/lib/auth/approval";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -37,30 +37,20 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/login?erro=sessao", requestUrl.origin));
   }
 
-  const normalizedEmail = user.email.toLowerCase();
-  const adminSupabase = createSupabaseAdminClient();
-  const { data: allowed } = await adminSupabase
-    .from("allowed_email_domains")
-    .select("id")
-    .eq("domain", emailDomain(normalizedEmail))
-    .eq("is_active", true)
-    .maybeSingle();
-
-  if (!allowed) {
+  const profileResult = await ensureAuthorizedProfile(user);
+  if (!profileResult.ok && profileResult.reason === "domain") {
     await supabase.auth.signOut();
     return NextResponse.redirect(new URL("/login?erro=dominio", requestUrl.origin));
   }
 
-  await adminSupabase
-    .from("profiles")
-    .upsert(
-      {
-        id: user.id,
-        email: normalizedEmail,
-        is_active: true
-      },
-      { onConflict: "id" }
-    );
+  if (!profileResult.ok) {
+    return NextResponse.redirect(new URL("/login?erro=sessao", requestUrl.origin));
+  }
+
+  if (!profileResult.profile.is_active) {
+    await supabase.auth.signOut();
+    return NextResponse.redirect(new URL("/login?erro=pendente", requestUrl.origin));
+  }
 
   const redirectTo = next.startsWith("/") && !next.startsWith("//") ? next : "/portal";
   return NextResponse.redirect(new URL(redirectTo, requestUrl.origin));
@@ -113,7 +103,7 @@ function renderImplicitCallbackHtml(next: string) {
         });
 
         if (!response.ok) {
-          window.location.replace(response.status === 403 ? "/login?erro=dominio" : "/login?erro=sessao");
+          window.location.replace(response.status === 403 ? "/login?erro=dominio" : response.status === 423 ? "/login?erro=pendente" : "/login?erro=sessao");
           return;
         }
 

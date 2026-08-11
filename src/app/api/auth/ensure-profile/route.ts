@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { createSupabaseAdminClient, createSupabaseServerClient } from "@/lib/supabase/server";
-import { emailDomain } from "@/lib/validation/auth";
+import { ensureAuthorizedProfile } from "@/lib/auth/approval";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export async function POST() {
   const supabase = await createSupabaseServerClient();
@@ -12,31 +12,19 @@ export async function POST() {
     return NextResponse.json({ error: "Sessao invalida." }, { status: 401 });
   }
 
-  const normalizedEmail = user.email.toLowerCase();
-  const adminSupabase = createSupabaseAdminClient();
-  const { data: allowed } = await adminSupabase
-    .from("allowed_email_domains")
-    .select("id")
-    .eq("domain", emailDomain(normalizedEmail))
-    .eq("is_active", true)
-    .maybeSingle();
-
-  if (!allowed) {
+  const profileResult = await ensureAuthorizedProfile(user);
+  if (!profileResult.ok && profileResult.reason === "domain") {
     await supabase.auth.signOut();
     return NextResponse.json({ error: "Dominio nao autorizado." }, { status: 403 });
   }
 
-  const { error } = await adminSupabase.from("profiles").upsert(
-    {
-      id: user.id,
-      email: normalizedEmail,
-      is_active: true
-    },
-    { onConflict: "id" }
-  );
-
-  if (error) {
+  if (!profileResult.ok) {
     return NextResponse.json({ error: "Nao foi possivel preparar o perfil." }, { status: 500 });
+  }
+
+  if (!profileResult.profile.is_active) {
+    await supabase.auth.signOut();
+    return NextResponse.json({ error: "Acesso pendente de aprovacao pelo administrador." }, { status: 423 });
   }
 
   return NextResponse.json({ ok: true });

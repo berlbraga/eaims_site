@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 const loginErrors: Record<string, string> = {
   dominio: "Este e-mail não pertence a um domínio institucional autorizado.",
   link: "O link de acesso está inválido, expirado ou já foi utilizado. Solicite um novo link nesta página.",
+  pendente: "Seu cadastro foi recebido e está pendente de aprovação por um administrador.",
   sessao: "Não foi possível criar sua sessão. Solicite um novo link de acesso."
 };
 
@@ -32,7 +33,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
             ) : null}
             <EmailForm />
             <p className="mt-4 text-xs text-muted-foreground">
-              O acesso é destinado a usuários com e-mail de domínio institucional autorizado. Esta verificação comprova somente acesso à caixa de e-mail.
+              O acesso é destinado a usuários com e-mail de domínio institucional autorizado e aprovação administrativa.
             </p>
             <Link className="mt-4 block text-sm text-primary hover:underline" href="/privacidade">Política de privacidade</Link>
           </CardContent>
