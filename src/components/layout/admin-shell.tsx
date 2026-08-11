@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookOpen, FileVideo, LayoutDashboard, Users } from "lucide-react";
+import { BarChart3, BookOpen, FileVideo, LayoutDashboard, Users } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import type { Profile } from "@/types/database";
 
@@ -7,6 +7,7 @@ const adminNav = [
   { href: "/admin", label: "Resumo", icon: LayoutDashboard },
   { href: "/admin/modulos", label: "Modulos", icon: BookOpen },
   { href: "/admin/aulas", label: "Aulas", icon: FileVideo },
+  { href: "/admin/progresso", label: "Progresso", icon: BarChart3 },
   { href: "/admin/usuarios", label: "Usuarios", icon: Users }
 ];
 
