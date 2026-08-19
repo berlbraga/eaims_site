@@ -107,6 +107,8 @@ pnpm seed:demo
 5. Configure Cloudflare Stream conforme o modo desejado.
 6. Publique na Vercel.
 
+Para producao com `eaims.com.br`, veja tambem `docs/producao-dominio-email.md`.
+
 ## Problemas comuns
 
 - "Supabase público não configurado": preencha `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.

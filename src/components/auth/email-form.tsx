@@ -69,11 +69,12 @@ export function EmailForm() {
       }
 
       const supabase = createMagicLinkClient();
+      const callbackUrl = `${window.location.origin}/auth/callback`;
       const { error } = await supabase.auth.signInWithOtp({
         email: submittedEmail,
         options: {
           shouldCreateUser: true,
-          emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin}/auth/callback`
+          emailRedirectTo: callbackUrl
         }
       });
 
