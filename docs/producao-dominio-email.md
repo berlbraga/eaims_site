@@ -100,7 +100,7 @@ Template HTML sugerido:
 <p>Use o link abaixo para acessar a plataforma E-AIMS:</p>
 
 <p>
-  <a href="https://eaims.com.br/auth/confirm?token_hash={{ .TokenHash }}&type=magiclink">
+  <a href="https://eaims.com.br/auth/confirm?token_hash={{ .TokenHash }}&type=email">
     Acessar plataforma E-AIMS
   </a>
 </p>
@@ -122,7 +122,7 @@ Ola,
 
 Use o link abaixo para acessar a plataforma E-AIMS:
 
-https://eaims.com.br/auth/confirm?token_hash={{ .TokenHash }}&type=magiclink
+https://eaims.com.br/auth/confirm?token_hash={{ .TokenHash }}&type=email
 
 Este link e individual e expira em poucos minutos.
 
@@ -133,3 +133,4 @@ Einstein Academic Initiative for Meta-analysis and Systematic Reviews
 ```
 
 Depois de salvar, teste um novo login usando um e-mail institucional autorizado. No Resend, confirme se o envio aparece como **Delivered** em ate 1 minuto. Se aparecer como entregue e ainda cair em spam, solicite ao time de TI institucional a liberacao de `acesso@eaims.com.br` e do dominio `eaims.com.br`.
+

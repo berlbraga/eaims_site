@@ -19,10 +19,11 @@ function AuthConfirmContent() {
     async function confirmSession() {
       const supabase = createSupabaseBrowserClient();
       const tokenHash = searchParams.get("token_hash");
-      const requestedType = searchParams.get("type") ?? "magiclink";
+      const requestedType = searchParams.get("type") ?? "email";
 
       if (tokenHash) {
-        const type = validEmailOtpTypes.has(requestedType as EmailOtpType) ? (requestedType as EmailOtpType) : "magiclink";
+        const normalizedType = requestedType === "magiclink" ? "email" : requestedType;
+        const type = validEmailOtpTypes.has(normalizedType as EmailOtpType) ? (normalizedType as EmailOtpType) : "email";
         const { error } = await supabase.auth.verifyOtp({
           token_hash: tokenHash,
           type
