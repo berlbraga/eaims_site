@@ -8,8 +8,8 @@ Quando a zona DNS terminar a transicao e ficar editavel, cadastre:
 
 | Tipo | Nome | Dados |
 | --- | --- | --- |
-| A | vazio | `76.76.21.21` |
-| CNAME | `www` | `cname.vercel-dns.com` |
+| A | vazio | `216.198.79.1` |
+| CNAME | `www` | `a3fe05dc7fc884c3.vercel-dns-01.com` |
 
 No Registro.br, o dominio principal geralmente fica com o campo **Nome** vazio. Nao use `@`, porque o painel pode rejeitar esse caractere.
 
@@ -58,14 +58,14 @@ https://eaims-gules.vercel.app/auth/callback
 
 Mantenha a URL da Vercel como fallback enquanto o dominio novo ainda estiver propagando.
 
-## 5. SMTP de producao
+## 5. SMTP de producao e entregabilidade
 
 Para evitar limites frequentes do envio padrao do Supabase, configure SMTP proprio com Resend ou outro provedor.
 
 No Resend, verifique o dominio `eaims.com.br` e copie os registros DNS informados por ele para o Registro.br. Depois, no Supabase, acesse **Authentication > Emails > SMTP Settings** e configure:
 
 ```txt
-Sender email: no-reply@eaims.com.br
+Sender email: acesso@eaims.com.br
 Sender name: E-AIMS
 SMTP host: smtp.resend.com
 SMTP port: 465
@@ -73,4 +73,33 @@ SMTP user: resend
 SMTP password: chave API do Resend
 ```
 
-Depois de salvar, teste um novo login usando um e-mail institucional autorizado.
+Evite remetentes `no-reply@...`, porque eles tendem a ter pior entregabilidade e podem parecer menos confiaveis para filtros corporativos. Para links de acesso, prefira um remetente funcional e claro, como `acesso@eaims.com.br`.
+
+No Resend, mantenha o dominio com SPF, DKIM e DMARC verificados. Para e-mails de autenticacao, desative **Open Tracking** e **Click Tracking** no dominio ou no envio, quando disponivel. Links reescritos por rastreamento podem aumentar a chance de classificacao como spam em ambientes corporativos.
+
+No Supabase, em **Authentication > Emails > Templates**, use um assunto e corpo simples, institucional e sem linguagem promocional.
+
+Assunto sugerido:
+
+```txt
+Seu link de acesso ao E-AIMS
+```
+
+Template sugerido:
+
+```txt
+Ola,
+
+Use o link abaixo para acessar a plataforma E-AIMS:
+
+{{ .ConfirmationURL }}
+
+Este link e individual e expira em poucos minutos.
+
+Se voce nao solicitou este acesso, ignore este e-mail.
+
+E-AIMS
+Einstein Academic Initiative for Meta-analysis and Systematic Reviews
+```
+
+Depois de salvar, teste um novo login usando um e-mail institucional autorizado. No Resend, confirme se o envio aparece como **Delivered** em ate 1 minuto. Se aparecer como entregue e ainda cair em spam, solicite ao time de TI institucional a liberacao de `acesso@eaims.com.br` e do dominio `eaims.com.br`.
