@@ -1,9 +1,12 @@
 "use client";
 
+import type { EmailOtpType } from "@supabase/supabase-js";
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+
+const validEmailOtpTypes = new Set<EmailOtpType>(["signup", "invite", "magiclink", "recovery", "email_change", "email"]);
 
 function AuthConfirmContent() {
   const router = useRouter();
@@ -15,6 +18,24 @@ function AuthConfirmContent() {
 
     async function confirmSession() {
       const supabase = createSupabaseBrowserClient();
+      const tokenHash = searchParams.get("token_hash");
+      const requestedType = searchParams.get("type") ?? "magiclink";
+
+      if (tokenHash) {
+        const type = validEmailOtpTypes.has(requestedType as EmailOtpType) ? (requestedType as EmailOtpType) : "magiclink";
+        const { error } = await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type
+        });
+
+        if (!mounted) return;
+
+        if (error) {
+          router.replace("/login?erro=link");
+          return;
+        }
+      }
+
       const {
         data: { session }
       } = await supabase.auth.getSession();

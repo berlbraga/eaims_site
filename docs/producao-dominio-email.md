@@ -10,6 +10,7 @@ Quando a zona DNS terminar a transicao e ficar editavel, cadastre:
 | --- | --- | --- |
 | A | vazio | `216.198.79.1` |
 | CNAME | `www` | `a3fe05dc7fc884c3.vercel-dns-01.com` |
+| TXT | `_dmarc` | `v=DMARC1; p=none;` |
 
 No Registro.br, o dominio principal geralmente fica com o campo **Nome** vazio. Nao use `@`, porque o painel pode rejeitar esse caractere.
 
@@ -54,6 +55,8 @@ https://eaims.com.br
 https://eaims.com.br/auth/callback
 https://www.eaims.com.br/auth/callback
 https://eaims-gules.vercel.app/auth/callback
+https://eaims.com.br/auth/confirm
+https://www.eaims.com.br/auth/confirm
 ```
 
 Mantenha a URL da Vercel como fallback enquanto o dominio novo ainda estiver propagando.
@@ -77,7 +80,9 @@ Evite remetentes `no-reply@...`, porque eles tendem a ter pior entregabilidade e
 
 No Resend, mantenha o dominio com SPF, DKIM e DMARC verificados. Para e-mails de autenticacao, desative **Open Tracking** e **Click Tracking** no dominio ou no envio, quando disponivel. Links reescritos por rastreamento podem aumentar a chance de classificacao como spam em ambientes corporativos.
 
-No Supabase, em **Authentication > Emails > Templates**, use um assunto e corpo simples, institucional e sem linguagem promocional.
+O alerta **Include valid DMARC record** do Resend e resolvido com o registro TXT `_dmarc` acima. A politica `p=none` e segura para comecar, porque apenas monitora e declara a autenticacao do dominio sem bloquear mensagens.
+
+No Supabase, em **Authentication > Emails > Templates**, use um assunto e corpo simples, institucional e sem linguagem promocional. Evite usar `{{ .ConfirmationURL }}` no corpo do e-mail, porque esse valor gera um link iniciado por `supabase.co`. Para melhorar a entregabilidade, use o dominio proprio do E-AIMS com `{{ .TokenHash }}`.
 
 Assunto sugerido:
 
@@ -85,14 +90,39 @@ Assunto sugerido:
 Seu link de acesso ao E-AIMS
 ```
 
-Template sugerido:
+Template HTML sugerido:
+
+```html
+<h2>Seu link de acesso ao E-AIMS</h2>
+
+<p>Ola,</p>
+
+<p>Use o link abaixo para acessar a plataforma E-AIMS:</p>
+
+<p>
+  <a href="https://eaims.com.br/auth/confirm?token_hash={{ .TokenHash }}&type=magiclink">
+    Acessar plataforma E-AIMS
+  </a>
+</p>
+
+<p>Este link e individual, expira em poucos minutos e pode ser usado apenas uma vez.</p>
+
+<p>Se voce nao solicitou este acesso, ignore este e-mail.</p>
+
+<p>
+  E-AIMS<br />
+  Einstein Academic Initiative for Meta-analysis and Systematic Reviews
+</p>
+```
+
+Template de texto simples sugerido:
 
 ```txt
 Ola,
 
 Use o link abaixo para acessar a plataforma E-AIMS:
 
-{{ .ConfirmationURL }}
+https://eaims.com.br/auth/confirm?token_hash={{ .TokenHash }}&type=magiclink
 
 Este link e individual e expira em poucos minutos.
 
