@@ -180,7 +180,8 @@ export async function updateUserAction(formData: FormData) {
     is_active: formData.get("is_active") === null ? undefined : formData.get("is_active") === "true",
     full_name: formData.get("full_name") || undefined
   });
-  const supabase = await createSupabaseServerClient();
+  const { user_id, ...updates } = parsed;
+  const supabase = createSupabaseAdminClient();
   const { data: target } = await supabase.from("profiles").select("role,is_active").eq("id", parsed.user_id).single();
   const { count } = await supabase
     .from("profiles")
@@ -199,6 +200,9 @@ export async function updateUserAction(formData: FormData) {
   ) {
     throw new Error("Nao e permitido alterar o ultimo administrador ativo.");
   }
-  await supabase.from("profiles").update(parsed).eq("id", parsed.user_id);
+  const { error } = await supabase.from("profiles").update(updates).eq("id", user_id);
+  if (error) {
+    throw new Error(`Nao foi possivel atualizar o usuario: ${error.message}`);
+  }
   revalidatePath("/admin/usuarios");
 }
